@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer');
 const readline = require('readline');
-const fs = require('fs'); // Required for file operations
+const fs = require('fs');
+const path = require('path'); // Required for handling file paths
+const { downloadSlidesAsPdf } = require('./downloader'); // Import the function
 
 // Create an interface to read input from the console
 const rl = readline.createInterface({
@@ -13,7 +15,24 @@ const baseUrl = "https://www.slideshare.net/";
 
 // Ask the user for the URL to scrape
 rl.question('Enter the URL to scrape: ', async (url) => {
-  const browser = await puppeteer.launch({ headless: false }); // Use headless: false to see browser action
+  // Extract username from the URL
+  const username = extractUsername(url);
+  if (!username) {
+    console.log('Invalid URL format. Could not extract username.');
+    rl.close();
+    return;
+  }
+
+  // Create a folder with the username if it doesn't exist
+  const folderPath = path.join(__dirname, username);
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath);
+    console.log(`Folder created: ${folderPath}`);
+  } else {
+    console.log(`Folder already exists: ${folderPath}`);
+  }
+
+  const browser = await puppeteer.launch({ headless: true }); // Use headless: false to see browser action
   const page = await browser.newPage();
 
   try {
@@ -86,13 +105,25 @@ rl.question('Enter the URL to scrape: ', async (url) => {
       }
     }
 
-    // Output the filtered links to the console
-    console.log('Filtered Links:', Array.from(allLinks));
+    // Show the number of files to be downloaded
+    const totalLinks = allLinks.size;
+    console.log(`Total ${totalLinks} files to download for user: ${username}`);
 
-    // Write the links to a text file
-    const filePath = 'scraped_links.txt';
-    fs.writeFileSync(filePath, Array.from(allLinks).join('\n'), 'utf-8');
-    console.log(`Links saved to ${filePath}`);
+    // Process each link in allLinks set
+    let downloadedCount = 0;
+    for (const link of allLinks) {
+      const fileName = extractFileNameFromLink(link);
+      if (fileName) {
+        // Call the downloadSlidesAsPdf function for each link
+        await downloadSlidesAsPdf(link, `${fileName}.pdf`, username); // Add .pdf extension to the file name
+        downloadedCount++;
+        console.log(`Downloaded ${downloadedCount} of ${totalLinks} files.`);
+      } else {
+        console.log(`Could not extract file name from link: ${link}`);
+      }
+    }
+
+    console.log("All downloads completed!");
 
   } catch (error) {
     console.error('Error:', error);
@@ -119,4 +150,19 @@ async function autoScroll(page) {
       }, 200);
     });
   });
+}
+
+// Function to extract username from the URL
+function extractUsername(url) {
+  const regex = /https:\/\/www\.slideshare\.net\/([^\/]+)/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
+// Function to extract file name from the link
+function extractFileNameFromLink(link) {
+  // Updated regex to handle the general format of slideshare.net URLs
+  const regex = /slideshare\.net\/[^/]+\/([^/]+)/;
+  const match = link.match(regex);
+  return match ? match[1] : null;
 }
