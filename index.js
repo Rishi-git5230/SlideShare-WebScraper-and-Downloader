@@ -9,7 +9,7 @@ const rl = readline.createInterface({
 });
 
 // The base URL to filter links is fixed
-const baseUrl = "https://www.slideshare.net/slideshow/";
+const baseUrl = "https://www.slideshare.net/";
 
 // Ask the user for the URL to scrape
 rl.question('Enter the URL to scrape: ', async (url) => {
@@ -36,13 +36,13 @@ rl.question('Enter the URL to scrape: ', async (url) => {
       await autoScroll(page);
 
       // Wait for the links to load
-      await page.waitForSelector('a[href^="https://www.slideshare.net/slideshow/"]', { timeout: 5000 });
+      await page.waitForSelector('a[href^="https://www.slideshare.net/"]', { timeout: 5000 });
 
       // Extract all links from the page inside the target div
       const links = await page.evaluate((baseUrl) => {
         const linkArray = [];
         // Select anchor tags that start with the base URL
-        const anchorTags = document.querySelectorAll('div.slideshow-list-container a[href^="https://www.slideshare.net/slideshow/"]');
+        const anchorTags = document.querySelectorAll('div.slideshow-list-container a[href^="https://www.slideshare.net/"]');
         anchorTags.forEach(anchor => {
           const href = anchor.href;
           if (href && href.startsWith(baseUrl)) {
@@ -116,7 +116,7 @@ async function autoScroll(page) {
           clearInterval(timer);
           resolve();
         }
-      }, 100);
+      }, 200);
     });
   });
 }
